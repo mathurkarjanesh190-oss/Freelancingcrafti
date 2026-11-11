@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>IronForge Gym (Sample)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#0b0b0b;--card:#171717;--line:#2a2a2a;--tx:#f4f4f4;--mu:#a0a0a0;--or:#ff7a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-behavior:smooth;scroll-padding-top:60px}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+a{color:inherit;text-decoration:none}h1,h2,h3{margin:0 0 8px;line-height:1.2}h2{font-size:26px}h2 span,.or{color:var(--or)}
+nav{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 16px;background:#000d;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+nav b{font-size:18px;letter-spacing:1px}nav a{color:var(--mu)}
+.btn{background:var(--or);color:#000;border:0;border-radius:8px;padding:9px 16px;font-weight:700;cursor:pointer;font-size:14px}
+.btn.o{background:none;color:var(--or);border:1px solid var(--or)}.btn.s{padding:4px 9px;font-size:12px}.btn.g{background:#2a2a2a;color:var(--tx)}
+.hero{padding:70px 20px;text-align:center;background:radial-gradient(circle at 50% 0,#ff7a0033,transparent 60%)}
+.hero h1{font-size:clamp(34px,9vw,64px)}.hero p{color:var(--mu);max-width:520px;margin:12px auto 22px}
+section{padding:36px 18px;max-width:1000px;margin:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card.pl{text-align:center}.price{font-size:28px;font-weight:800;color:var(--or)}
+.stat b{display:block;font-size:28px;color:var(--or)}.stat{color:var(--mu);font-size:13px}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--mu)}
+input,select,textarea{width:100%;background:#0f0f0f;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;margin:3px 0 8px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 0}.tabs button{background:var(--card);color:var(--mu);border:1px solid var(--line);border-radius:20px;padding:7px 14px;cursor:pointer;white-space:nowrap}.tabs .on{background:var(--or);color:#000;border-color:var(--or)}
+.wa{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));background:#25d366;color:#000;border-radius:30px;padding:11px 16px;font-weight:700;z-index:6}
+.modal{position:fixed;inset:0;background:#000b;z-index:9;display:flex;align-items:center;justify-content:center;padding:16px}.modal .card{width:100%;max-width:420px;max-height:90%;overflow:auto}
+.tag{padding:2px 8px;border-radius:10px;font-size:11px;background:#2a2a2a}.ok{color:#4ade80}.bad{color:#f87171}.mu{color:var(--mu)}
+footer{text-align:center;color:var(--mu);padding:26px;font-size:13px}
+</style></head><body>
+<div id="app"></div>
+<script>
+const PL={Monthly:[1,1500],Quarterly:[3,4000],"Half-Yearly":[6,7500],Yearly:[12,12000]};
+const WA="919999999999";
+const NAMES=["members","att","pay","enq","tr","wk","diet","staff","logins"];
+const D={};NAMES.forEach(n=>D[n]=[]);
+let db=true,user=null,uid=null,me=null,view="home",tab="dash",q="",timer,msg="";
+const $=s=>document.querySelector(s);
+const e=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today=()=>new Date().toISOString().slice(0,10);
+const addM=(d,m)=>{const x=new Date(d);x.setMonth(x.getMonth()+m);return x.toISOString().slice(0,10)};
+const mem=id=>D.members.find(m=>m.id===id);
+const status=m=>m.inactive?"Inactive":(m.expiry>=today()?"Active":"Expired");
+const nm=id=>mem(id)?.name||"—";
+const KEY="ironforge_demo_v1";
+const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(x){}};
+async function save(c,o,id){id=id||Date.now().toString(36)+Math.random().toString(36).slice(2,5);const r={...o,id},i=D[c].findIndex(x=>x.id===id);i<0?D[c].push(r):D[c][i]=r;persist();draw(false)}
+async function del(c,id){if(confirm("Delete this record?")){D[c]=D[c].filter(x=>x.id!==id);persist();draw(false)}}
+function seed(){const dd=n=>new Date(Date.now()+n*864e5).toISOString().slice(0,10),t=today();
+ D.members=[["m1","Rahul Sharma","919811111111","Monthly",-10,20,175,72,"Arjun Singh"],["m2","Priya Verma","919822222222","Quarterly",-60,30,162,58,"Neha Kapoor"],["m3","Amit Patel","919833333333","Yearly",-200,165,180,85,"Arjun Singh"],["m4","Sneha Reddy","919844444444","Monthly",-45,-15,158,54,"Neha Kapoor"],["m5","Vikram Joshi","919855555555","Half-Yearly",-100,5,172,78,"Arjun Singh"],["m6","Anjali Nair","919866666666","Monthly",-3,27,165,60,"Neha Kapoor"]].map(a=>({id:a[0],name:a[1],phone:a[2],plan:a[3],joined:dd(a[4]),start:dd(a[4]),expiry:dd(a[5]),height:a[6],weight:a[7],trainer:a[8],history:[dd(a[4])+" "+a[3]]}));
+ D.att=[["m1",0],["m2",0],["m3",0],["m6",0],["m1",-1],["m5",-1],["m3",-2]].map((a,i)=>({id:"a"+i,mid:a[0],date:dd(a[1]),in:dd(a[1])+"T0"+(6+i%3)+":15:00",out:dd(a[1])+"T0"+(7+i%3)+":30:00"}));
+ D.pay=[["m1",1500,"UPI","Paid",-10],["m2",4000,"Cash","Paid",-60],["m3",12000,"Online","Paid",0],["m6",1500,"Cash","Paid",0],["m4",1500,"UPI","Pending",-15],["m5",7500,"Online","Paid",-100]].map((a,i)=>({id:"p"+i+"x",mid:a[0],amount:a[1],mode:a[2],status:a[3],date:dd(a[4])}));
+ D.enq=[{id:"e1",name:"Karan Mehta",phone:"919877777777",plan:"Quarterly",date:t,follow:"New"},{id:"e2",name:"Pooja Das",phone:"919888888888",plan:"Monthly",date:dd(-2),follow:"Contacted"}];
+ D.tr=[{id:"t1",name:"Arjun Singh",phone:"919800000001",qual:"ACE Certified Trainer",spec:"Strength & Conditioning",avail:"6 AM – 2 PM"},{id:"t2",name:"Neha Kapoor",phone:"919800000002",qual:"Yoga Alliance RYT-500",spec:"Yoga & Mobility",avail:"2 PM – 10 PM"},{id:"t3",name:"Rohan Khan",phone:"919800000003",qual:"Nutrition & Fitness Coach",spec:"HIIT & Cardio",avail:"6 AM – 12 PM"}];
+ D.wk=[{id:"w1",name:"Beginner Full Body",mid:"m6",plan:"Mon: Squats 3x12, Push-ups 3x10. Wed: Deadlift 3x8, Rows 3x10. Fri: Cardio 20 min + core.",date:t}];
+ D.diet=[{id:"d1",name:"Fat Loss Plan",mid:"m2",plan:"Breakfast: oats + eggs. Lunch: dal, roti, salad. Dinner: grilled paneer + veg.",water:3,date:t}];
+ D.staff=[{id:"s1",name:"Gym Owner",role:"admin",user:"admin",pass:"admin123",status:"approved"},{id:"s2",name:"Riya (Reception)",role:"receptionist",user:"reception",pass:"recep123",status:"approved"},{id:"s3",name:"Arjun Singh",role:"trainer",user:"trainer",pass:"train123",status:"approved"},{id:"s4",name:"Mohan (Accounts)",role:"accountant",user:"accounts",pass:"acc123",status:"approved"},{id:"s5",name:"New Staff",role:"receptionist",user:"newstaff",pass:"new123",status:"pending"}];
+ D.logins=[]}
+const ROLES={admin:["dash","members","att","memb","pay","tr","enq","wk","diet","staff"],receptionist:["dash","members","att","memb","pay","enq"],trainer:["members","wk","diet","tr"],accountant:["dash","pay"]};
+const LBL={dash:"Dashboard",members:"Members",att:"Attendance",memb:"Memberships",pay:"Payments",tr:"Trainers",enq:"Enquiries",wk:"Workouts",diet:"Diets",staff:"Staff"};
+
+function ask(title,fields,init,cb){
+ const m=document.createElement("div");m.className="modal";
+ m.innerHTML=`<div class="card"><h3>${e(title)}</h3>${fields.map(([k,l,t])=>`<label class="mu">${e(l)}${t&&t.startsWith("sel:")?`<select data-k="${k}">${t.slice(4).split("|").map(o=>{const[v,x]=o.split("=");return`<option value="${e(v)}">${e(x||v)}</option>`}).join("")}</select>`:t==="area"?`<textarea rows="4" data-k="${k}"></textarea>`:`<input data-k="${k}" type="${t||"text"}">`}</label>`).join("")}<button class="btn" id="ok">Save</button> <button class="btn g" id="no">Cancel</button></div>`;
+ document.body.append(m);
+ m.querySelectorAll("[data-k]").forEach(i=>i.value=(init&&init[i.dataset.k])??"");
+ m.querySelector("#no").onclick=()=>m.remove();
+ m.querySelector("#ok").onclick=()=>{const o={};m.querySelectorAll("[data-k]").forEach(i=>o[i.dataset.k]=i.value.trim());m.remove();cb(o)};
+}
+const memOpts=()=>"sel:"+D.members.map(m=>`${m.id}=${m.name}`).join("|");
+const planOpts="sel:"+Object.keys(PL).join("|");
+
+/* ---------- PUBLIC SITE ---------- */
+function home(){
+ const tr=D.tr.length?D.tr:[{name:"Head Coach",spec:"Strength & Conditioning"},{name:"Yoga Instructor",spec:"Yoga & Mobility"},{name:"Cardio Coach",spec:"HIIT & Cardio"}];
+ return`<nav><b class="or">⚡ IRONFORGE</b><a href="#about">About</a><a href="#services">Services</a><a href="#plans">Plans</a><a href="#trainers">Trainers</a><a href="#timetable">Timetable</a><a href="#gallery">Gallery</a><a href="#contact">Contact</a><button class="btn s" onclick="go('login')">Staff Login</button></nav>
+<div class="hero"><h1>FORGE YOUR <span class="or">STRONGEST</span> SELF</h1><p>Premium equipment, expert trainers and a community that pushes you further.</p><button class="btn" onclick="joinNow()">Join Now</button> <a class="btn o" href="#plans">View Plans</a></div>
+<section id="about"><h2>About <span>Us</span></h2><p class="mu">IronForge is a full-service fitness club with modern equipment, certified coaches and flexible memberships for every goal.</p><div class="grid"><div class="card">🏋️ Free weights & machines</div><div class="card">🏃 Cardio zone</div><div class="card">🧘 Yoga studio</div><div class="card">🚿 Lockers & showers</div></div></section>
+<section id="services"><h2>Our <span>Services</span></h2><div class="grid"><div class="card"><h3>Weight Training</h3><span class="mu">Build strength and size.</span></div><div class="card"><h3>Cardio</h3><span class="mu">Boost endurance.</span></div><div class="card"><h3>Yoga</h3><span class="mu">Flexibility and calm.</span></div><div class="card"><h3>Personal Training</h3><span class="mu">One-to-one coaching.</span></div></div></section>
+<section id="plans"><h2>Membership <span>Plans</span></h2><div class="grid">${["Monthly","Quarterly","Yearly"].map(p=>`<div class="card pl"><h3>${p}</h3><div class="price">₹${PL[p][1]}</div><p class="mu">Full gym access</p><button class="btn" onclick="joinNow('${p}')">Choose</button></div>`).join("")}</div></section>
+<section id="trainers"><h2>Our <span>Trainers</span></h2><div class="grid">${tr.map(t=>`<div class="card"><div style="font-size:42px">💪</div><h3>${e(t.name)}</h3><span class="mu">${e(t.spec||t.qual||"")}</span></div>`).join("")}</div></section>
+<section id="timetable"><h2>Gym <span>Timetable</span></h2><div class="card wrap"><table><tr><th>Day</th><th>Morning</th><th>Evening</th></tr><tr><td>Mon–Sat</td><td>5:30 AM – 10:00 AM</td><td>4:30 PM – 10:00 PM</td></tr><tr><td>Sunday</td><td>6:00 AM – 11:00 AM</td><td>Closed</td></tr></table></div></section>
+<section id="gallery"><h2>Photo & Video <span>Gallery</span></h2><div class="grid"><div class="card">📷 Add photos</div><div class="card">🎬 Add videos</div></div></section>
+<section id="contact"><h2>Contact <span>Us</span></h2><div class="card"><p>📍 Your gym address here<br>📞 +91 99999 99999</p><p class="mu">Map: <a class="or" target="_blank" href="https://www.google.com/maps/search/gym">open in Google Maps</a></p><button class="btn" onclick="joinNow()">Send an enquiry</button></div></section>
+<footer>© IronForge Gym · Sample demo website</footer><a class="wa" target="_blank" href="https://wa.me/${WA}">WhatsApp</a>`}
+function joinNow(p){
+ const f=[["name","Your name"],["phone","Phone","tel"],["plan","Interested plan",planOpts]];
+ ask("Join Now",f,{plan:p||"Monthly"},async o=>{
+  if(!o.name||!o.phone)return alert("Name and phone are required");
+  await save("enq",{...o,date:today(),follow:"New"});alert("Thanks! We will contact you soon.");
+ });
+}
+
+/* ---------- LOGIN ---------- */
+function go(v){view=v;msg="";draw()}
+function arm(){clearTimeout(timer);timer=setTimeout(()=>{me=null;view="home";draw();alert("Session expired. Please sign in again.")},15*60*1000)}
+function doLogin(){const u=$("#lu").value.trim(),p=$("#lp").value,s=D.staff.find(x=>x.user===u&&x.pass===p);
+ if(!s)msg="Wrong username or password.";else if(s.status!=="approved")msg="Your account is waiting for admin approval.";
+ else{me=s;msg="";view="app";tab=ROLES[s.role][0];D.logins.push({id:"l"+Date.now(),who:s.name,role:s.role,at:new Date().toISOString()});persist();arm()}draw()}
+function forgot(){alert("Password reset: ask the Admin / Owner to reset it from the Staff tab. (Demo)")}
+function login(){return`<nav><b class="or">⚡ IRONFORGE</b><button class="btn s g" onclick="go('home')">← Website</button></nav><section style="max-width:440px"><div class="card"><h2>Staff <span>Login</span></h2><input id="lu" placeholder="Username" autocomplete="off"><input id="lp" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"><p class="bad">${e(msg)}</p><button class="btn" onclick="doLogin()">Login</button> <button class="btn g" onclick="forgot()">Forgot password?</button><p class="mu" style="font-size:12px;margin-top:14px"><b>Demo accounts</b><br>admin / admin123 · reception / recep123<br>trainer / train123 · accounts / acc123</p></div></section>`}
+
+/* ---------- DASHBOARD ---------- */
+const sum=a=>a.reduce((s,x)=>s+(+x.amount||0),0);
+function dash(){
+ const t=today(),mo=t.slice(0,7),M=D.members;
+ const st=[["Total members",M.length],["Active",M.filter(m=>status(m)==="Active").length],["Expired",M.filter(m=>status(m)==="Expired").length],["Today’s attendance",D.att.filter(a=>a.date===t).length],["New this month",M.filter(m=>(m.joined||"").startsWith(mo)).length],["Trainers",D.tr.length],["Pending payments","₹"+sum(D.pay.filter(p=>p.status==="Pending"))],["Today’s collection","₹"+sum(D.pay.filter(p=>p.status==="Paid"&&p.date===t))],["Month collection","₹"+sum(D.pay.filter(p=>p.status==="Paid"&&p.date.startsWith(mo)))],["Open enquiries",D.enq.filter(x=>x.follow!=="Converted").length]];
+ const soon=M.filter(m=>!m.inactive&&m.expiry>=t&&m.expiry<=addM(t,0).slice(0,8)+"99"&&m.expiry<=new Date(Date.now()+7*864e5).toISOString().slice(0,10));
+ return`<div class="grid">${st.map(([l,v])=>`<div class="card stat"><b>${v}</b>${l}</div>`).join("")}</div><h3 style="margin-top:18px">Expiring within 7 days</h3>${soon.length?soon.map(m=>`<div class="card" style="margin:6px 0">${e(m.name)} · ${m.expiry} · <a class="or" target="_blank" href="https://wa.me/${e(m.phone)}?text=${encodeURIComponent("Hi "+m.name+", your gym membership expires on "+m.expiry+". Renew soon!")}">WhatsApp reminder</a></div>`).join(""):`<p class="mu">None.</p>`}`;
+}
+function table(cols,rows,acts){
+ return`<div class="card wrap"><table><tr>${cols.map(c=>`<th>${c[0]}</th>`).join("")}<th></th></tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${c[1](r)}</td>`).join("")}<td>${acts?acts(r):""}</td></tr>`).join("")||`<tr><td class="mu">No records yet.</td></tr>`}</table></div>`;
+}
+const bar=(btn,extra="")=>`<div style="display:flex;gap:8px;margin:8px 0">${extra}${btn}</div>`;
+const MF=[["name","Name"],["phone","Phone (with country code)","tel"],["email","Email"],["plan","Plan",planOpts],["trainer","Trainer"],["photo","Photo URL"],["height","Height (cm)","number"],["weight","Weight (kg)","number"]];
+function members(){
+ const r=D.members.filter(m=>(m.name+m.phone).toLowerCase().includes(q.toLowerCase()));
+ return bar(`<button class="btn" onclick="addMember()">+ Add</button>`,`<input placeholder="Search name or phone" value="${e(q)}" oninput="q=this.value;draw(true)" style="margin:0">`)+table([["ID",m=>m.id.toUpperCase()],["Name",m=>e(m.name)],["Phone",m=>e(m.phone)],["Plan",m=>e(m.plan)],["Expiry",m=>m.expiry],["Status",m=>`<span class="tag ${status(m)==="Active"?"ok":"bad"}">${status(m)}</span>`],["BMI",m=>m.height&&m.weight?(m.weight/((m.height/100)**2)).toFixed(1):"—"]],r,m=>`<button class="btn s g" onclick="editMember('${m.id}')">Edit</button> <button class="btn s g" onclick="card('${m.id}')">Card</button> <button class="btn s g" onclick="save('members',{...mem('${m.id}'),inactive:${!m.inactive}},'${m.id}')">${m.inactive?"Activate":"Deactivate"}</button> <button class="btn s g" onclick="del('members','${m.id}')">✕</button>`);
+}
+function addMember(){ask("New member",MF,{plan:"Monthly"},o=>{if(!o.name)return;const t=today();save("members",{...o,joined:t,start:t,expiry:addM(t,PL[o.plan][0]),history:[t+" "+o.plan]})})}
+function editMember(id){const m=mem(id);ask("Edit member",MF,m,o=>save("members",{...m,...o},id))}
+function card(id){const m=mem(id);const x=document.createElement("div");x.className="modal";x.innerHTML=`<div class="card" style="text-align:center"><h3 class="or">IRONFORGE</h3><h2>${e(m.name)}</h2><p>ID: <b>${id.toUpperCase()}</b><br>${e(m.plan)} · valid till ${m.expiry}</p><p class="mu">Use this ID for check-in.</p><button class="btn" onclick="print()">Print</button> <button class="btn g" onclick="this.closest('.modal').remove()">Close</button></div>`;document.body.append(x)}
+function att(){
+ const t=today();const rows=[...D.att].sort((a,b)=>(b.in||"").localeCompare(a.in||"")).filter(a=>nm(a.mid).toLowerCase().includes(q.toLowerCase())).slice(0,100);
+ return bar(`<button class="btn" onclick="checkIn()">Check-in</button>`,`<input placeholder="Search by member name" value="${e(q)}" oninput="q=this.value;draw(true)" style="margin:0">`)+`<p class="mu">Today: ${D.att.filter(a=>a.date===t).length} check-ins. Enter a member ID from their card to check in.</p>`+table([["Member",a=>e(nm(a.mid))],["Date",a=>a.date],["In",a=>(a.in||"").slice(11,16)],["Out",a=>(a.out||"").slice(11,16)||"—"]],rows,a=>a.out?"":`<button class="btn s" onclick="save('att',{...D.att.find(x=>x.id==='${a.id}'),out:new Date().toISOString()},'${a.id}')">Check-out</button>`);
+}
+function checkIn(){ask("Check-in",[["mid","Member",memOpts()]],{},o=>{const m=mem(o.mid);if(!m)return;if(status(m)!=="Active")return alert(m.name+" is "+status(m)+". Renew first.");save("att",{mid:o.mid,date:today(),in:new Date().toISOString()})})}
+function memb(){
+ return table([["Member",m=>e(m.name)],["Plan",m=>e(m.plan)],["Start",m=>m.start],["Expiry",m=>m.expiry],["Status",m=>status(m)],["History",m=>e((m.history||[]).slice(-3).join("; "))]],D.members,m=>`<button class="btn s" onclick="renew('${m.id}')">Renew</button>`);
+}
+function renew(id){const m=mem(id);ask("Renew "+m.name,[["plan","Plan",planOpts],["custom","Custom months (optional)","number"]],{plan:m.plan},o=>{const n=+o.custom||PL[o.plan][0],from=m.expiry>today()?m.expiry:today();save("members",{...m,plan:o.plan,start:from,expiry:addM(from,n),inactive:false,history:[...(m.history||[]),today()+" "+o.plan]},id)})}
+function pay(){
+ return bar(`<button class="btn" onclick="addPay()">+ Record payment</button>`)+table([["No.",p=>p.id.slice(-5).toUpperCase()],["Member",p=>e(nm(p.mid))],["₹",p=>p.amount],["Mode",p=>e(p.mode)],["Date",p=>p.date],["Status",p=>`<span class="${p.status==="Paid"?"ok":"bad"}">${p.status}</span>`]],[...D.pay].sort((a,b)=>b.date.localeCompare(a.date)),p=>`<button class="btn s g" onclick="rcpt('${p.id}')">Receipt</button>${p.status==="Pending"?` <button class="btn s" onclick="save('pay',{...D.pay.find(x=>x.id==='${p.id}'),status:'Paid',date:today()},'${p.id}')">Mark paid</button>`:""}`);
+}
+function addPay(){ask("Record payment",[["mid","Member",memOpts()],["amount","Amount ₹","number"],["mode","Mode","sel:Cash|UPI|Online"],["status","Status","sel:Paid|Pending"]],{mode:"Cash",status:"Paid"},o=>{if(!o.mid||!+o.amount)return;save("pay",{...o,amount:+o.amount,date:today()})})}
+function rcpt(id){const p=D.pay.find(x=>x.id===id);const x=document.createElement("div");x.className="modal";x.innerHTML=`<div class="card"><h3 class="or">IRONFORGE · Receipt</h3><p>No: ${id.slice(-5).toUpperCase()}<br>Member: ${e(nm(p.mid))}<br>Amount: ₹${p.amount} (${e(p.mode)})<br>Date: ${p.date}<br>Status: ${p.status}</p><button class="btn" onclick="print()">Print</button> <button class="btn g" onclick="this.closest('.modal').remove()">Close</button></div>`;document.body.append(x)}
+function simple(c,title,fields,cols,extra){
+ return bar(`<button class="btn" onclick="ask('${title}',${e(JSON.stringify(fields)).replace(/&quot;/g,"&quot;")},{},o=>o.${fields[0][0]}&&save('${c}',{...o,date:today()}))">+ Add</button>`)+table(cols,D[c],r=>(extra?extra(r):"")+` <button class="btn s g" onclick="del('${c}','${r.id}')">✕</button>`);
+}
+const tr_=()=>simple("tr","Add trainer",[["name","Name"],["phone","Phone"],["qual","Qualification"],["spec","Speciality"],["avail","Availability"]],[["Name",r=>e(r.name)],["Phone",r=>e(r.phone)],["Qualification",r=>e(r.qual)],["Availability",r=>e(r.avail)],["Members",r=>D.members.filter(m=>m.trainer===r.name).length]]);
+const wk=()=>simple("wk","New workout plan",[["name","Plan name"],["mid","Assign to member",memOpts()],["plan","Daily exercises & instructions","area"]],[["Plan",r=>e(r.name)],["Member",r=>e(nm(r.mid))],["Exercises",r=>e((r.plan||"").slice(0,60))],["Created",r=>r.date]]);
+const diet=()=>simple("diet","New diet plan",[["name","Plan name"],["mid","Assign to member",memOpts()],["plan","Meals & nutrition","area"],["water","Water goal (litres)","number"]],[["Plan",r=>e(r.name)],["Member",r=>e(nm(r.mid))],["Water L",r=>e(r.water)],["Meals",r=>e((r.plan||"").slice(0,60))]]);
+function enq(){
+ return bar(`<button class="btn" onclick="ask('New enquiry',[['name','Name'],['phone','Phone'],['plan','Plan','${planOpts}']],{plan:'Monthly'},o=>o.name&&save('enq',{...o,date:today(),follow:'New'}))">+ Add</button>`)+table([["Name",r=>e(r.name)],["Phone",r=>e(r.phone)],["Plan",r=>e(r.plan)],["Date",r=>r.date],["Follow-up",r=>e(r.follow)]],D.enq,r=>r.follow==="Converted"?"":`<button class="btn s g" onclick="save('enq',{...D.enq.find(x=>x.id==='${r.id}'),follow:'Contacted'},'${r.id}')">Contacted</button> <button class="btn s" onclick="convert('${r.id}')">Convert</button>`);
+}
+function convert(id){const r=D.enq.find(x=>x.id===id),t=today();save("members",{name:r.name,phone:r.phone,plan:r.plan,joined:t,start:t,expiry:addM(t,PL[r.plan][0]),history:[t+" "+r.plan]});save("enq",{...r,follow:"Converted"},id)}
+function staff(){
+ return table([["Name",s=>e(s.name)],["Role",s=>e(s.role)],["Status",s=>e(s.status)]],D.staff,s=>s.id===me.id?"You":`${s.status==="pending"?`<button class="btn s" onclick="save('staff',{...D.staff.find(x=>x.id==='${s.id}'),status:'approved'},'${s.id}')">Approve</button> `:""}<button class="btn s g" onclick="del('staff','${s.id}')">Remove</button>`)+`<h3 style="margin-top:16px">Login activity</h3>`+table([["Who",l=>e(l.who)],["Role",l=>e(l.role)],["When",l=>l.at.slice(0,16).replace("T"," ")]],[...D.logins].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,15));
+}
+const V={dash,members,att,memb,pay,tr:tr_,enq,wk,diet,staff};
+function appView(){
+ const tabs=ROLES[me.role];if(!tabs.includes(tab))tab=tabs[0];
+ return`<nav><b class="or">⚡ IRONFORGE</b><span class="mu">${e(me.name)} · ${e(me.role)}</span><button class="btn s g" onclick="go('home')">Website</button><button class="btn s" onclick="me=null;view='home';draw()">Logout</button></nav><section style="max-width:1100px;padding-top:8px"><div class="tabs">${tabs.map(t=>`<button class="${t===tab?"on":""}" onclick="tab='${t}';q='';draw()">${LBL[t]}</button>`).join("")}</div><div id="pane">${V[tab]()}</div></section>`;
+}
+function draw(keep){
+ if(view==="app"&&me){arm()}
+ if(keep===true&&view==="app"){const p=$("#pane");if(p){const f=document.activeElement,pos=f&&f.selectionStart;p.innerHTML=V[tab]();const i=p.querySelector("input[oninput]");if(i){i.focus();i.setSelectionRange(pos,pos)}return}}
+ $("#app").innerHTML=view==="home"?home():view==="login"?login():(me?appView():login());
+}
+try{const s=localStorage.getItem(KEY);if(s)Object.assign(D,JSON.parse(s));else seed()}catch(x){seed()}
+if(!D.members.length&&!D.staff.length)seed();
+draw();
+</script></body></html>
